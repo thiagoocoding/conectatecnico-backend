@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/*.js": {
+    "api/enviar-notificacao.js": {
       "runtime": "nodejs18.x"
     }
   }
