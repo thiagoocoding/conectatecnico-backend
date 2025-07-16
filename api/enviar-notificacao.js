@@ -1,4 +1,4 @@
-// Ficheiro: api/enviar-notificacao.js - VERSÃO FINAL E CORRIGIDA COM TESTE
+// Ficheiro: api/enviar-notificacao.js - VERSÃO FINAL E CORRIGIDA
 
 const admin = require('firebase-admin');
 
@@ -29,18 +29,6 @@ try {
 
 // Esta é a função que a Vercel vai executar
 module.exports = async (request, response) => {
-  // ===== TESTE TEMPORÁRIO (REMOVER DEPOIS QUE FUNCIONAR) =====
-  if (request.method === 'GET') {
-    return response.status(200).json({ 
-      message: 'Função está funcionando!', 
-      timestamp: new Date().toISOString(),
-      firebase: admin.apps.length > 0 ? 'Inicializado' : 'Não inicializado',
-      method: request.method,
-      url: request.url
-    });
-  }
-  // ===== FIM DO CÓDIGO DE TESTE =====
-
   // Garante que o Firebase foi inicializado antes de continuar
   if (!admin.apps.length) {
     return response.status(500).send({ error: 'O servidor não conseguiu inicializar o Firebase. Verifique os logs.' });
