@@ -13,5 +13,14 @@
   "dependencies": {
     "express": "^5.1.0",
     "firebase-admin": "^13.4.0"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thiagoocoding/conectatecnico-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thiagoocoding/conectatecnico-backend/issues"
+  },
+  "homepage": "https://github.com/thiagoocoding/conectatecnico-backend#readme"
 }

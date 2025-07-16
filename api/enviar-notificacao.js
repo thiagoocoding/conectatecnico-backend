@@ -1,57 +1,67 @@
-// ficheiro: api/enviar-notificacao.js
+// Ficheiro: functions/enviar-notificacao.js
+// Este ficheiro deve estar dentro de uma pasta chamada "functions" no seu novo projeto Netlify.
 
-// 1. Importar a biblioteca do Firebase
 const admin = require('firebase-admin');
 
-// 2. Carregar as credenciais a partir de variáveis de ambiente separadas
+// INICIALIZAÇÃO DO FIREBASE ADMIN
+// Esta parte só é executada uma vez para otimizar a função.
 try {
-  // Evita que o app seja inicializado múltiplas vezes em ambientes de desenvolvimento
-  if (!admin.apps.length) { 
+  if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // A chave privada precisa de um tratamento especial para restaurar as quebras de linha
         privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
       }),
     });
   }
-} catch (error) {
-  console.error('Falha na inicialização do Firebase Admin:', error);
-  // Se a inicialização falhar, a função não pode continuar.
-  // Lançar o erro pode ajudar a Vercel a reportar uma falha na função.
+} catch (e) {
+  console.error('Falha na inicialização do Firebase Admin:', e);
 }
 
-// 3. Esta é a função serverless que a Vercel vai executar
-module.exports = async (request, response) => {
-  // Permitir apenas requisições do tipo POST
-  if (request.method !== 'POST') {
-    return response.status(405).send({ error: 'Método não permitido. Utilize POST.' });
+// FUNÇÃO PRINCIPAL QUE O NETLIFY VAI EXECUTAR
+exports.handler = async function(event, context) {
+  // 1. Permitir apenas requisições do tipo POST
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Método não permitido. Utilize POST.' }),
+    };
   }
 
-  // Extrair os dados do corpo da requisição
-  const { idFuncionario, novoAtendimento } = request.body;
+  // 2. Extrair os dados da requisição
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (error) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Corpo da requisição inválido.' }) };
+  }
+  
+  const { idFuncionario, novoAtendimento } = body;
 
-  // Validar se os dados essenciais foram recebidos
   if (!idFuncionario || !novoAtendimento) {
-    return response.status(400).send({ error: "Faltam dados essenciais na requisição (idFuncionario, novoAtendimento)." });
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: 'Faltam dados essenciais (idFuncionario, novoAtendimento).' }),
+    };
   }
 
   console.log(`Recebido pedido para notificar o funcionário: ${idFuncionario}`);
 
+  // 3. Lógica para enviar a notificação
   try {
-    // Procurar o documento do utilizador no Firestore para obter o token do telemóvel
     const userDoc = await admin.firestore().collection("users").doc(String(idFuncionario)).get();
 
-    // Verificar se o utilizador existe e se tem um token FCM
     if (!userDoc.exists || !userDoc.data().fcmToken) {
-      console.log(`Técnico ${idFuncionario} não encontrado ou não tem um token FCM.`);
-      return response.status(404).send({ error: "Técnico não encontrado ou sem token FCM registado." });
+      console.log(`Técnico ${idFuncionario} não encontrado ou sem token.`);
+      return {
+        statusCode: 404,
+        body: JSON.stringify({ error: 'Técnico não encontrado ou sem token FCM registado.' }),
+      };
     }
 
     const fcmToken = userDoc.data().fcmToken;
 
-    // Montar a mensagem da notificação
     const mensagem = {
       notification: {
         title: "Novo Atendimento Atribuído!",
@@ -62,28 +72,22 @@ module.exports = async (request, response) => {
         atendimentoId: String(novoAtendimento.id),
       },
       token: fcmToken,
-      android: {
-        priority: "high", // Maximiza a chance de entrega imediata no Android
-      },
-      apns: { // Configuração para dispositivos Apple (iOS)
-        payload: {
-          aps: {
-            sound: "default",
-          },
-        },
-      },
+      android: { priority: "high" },
     };
 
-    // Enviar a mensagem através do Firebase Cloud Messaging
     await admin.messaging().send(mensagem);
     console.log("Notificação enviada com sucesso!");
-    
-    // Retornar uma resposta de sucesso
-    return response.status(200).send({ success: true, message: "Notificação enviada!" });
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true, message: 'Notificação enviada!' }),
+    };
 
   } catch (error) {
-    console.error("Erro detalhado ao enviar notificação:", error);
-    // Retornar uma resposta de erro genérica
-    return response.status(500).send({ error: "Falha interna ao processar o envio da notificação." });
+    console.error("Erro ao enviar notificação:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Falha interna ao processar o envio da notificação.' }),
+    };
   }
 };
